@@ -155,6 +155,48 @@ def listing_detail(id):
     return render_template("listing_detail.html", listing=listing,
                            seller=seller, already_saved=already_saved)
 
+@app.route("/my_listings")
+@login_required
+def my_listings():
+    listings = Listing.query.filter_by(user_id=current_user.id)\
+                            .order_by(Listing.created_at.desc()).all()
+    return render_template("my_listings.html", listings=listings, categories=CATEGORIES)
+
+@app.route("/listing/<int:id>/edit", methods=["GET", "POST"])
+@login_required
+def edit_listing(id):
+    listing = Listing.query.get_or_404(id)
+    if listing.user_id != current_user.id:
+        flash("You can only edit your own listings.", "error")
+        return redirect(url_for("index"))
+    if request.method == "POST":
+        listing.title = request.form["title"]
+        listing.description = request.form["description"]
+        listing.price = float(request.form["price"])
+        listing.category = request.form["category"]
+        image = request.files.get("image")
+        if image and allowed_file(image.filename):
+            filename = secure_filename(image.filename)
+            image.save(os.path.join(app.config["UPLOAD_FOLDER"], filename))
+            listing.image = filename
+        db.session.commit()
+        flash("Listing updated.", "success")
+        return redirect(url_for("my_listings"))
+    return render_template("edit_listing.html", listing=listing, categories=CATEGORIES)
+
+@app.route("/listing/<int:id>/delete", methods=["POST"])
+@login_required
+def delete_listing(id):
+    listing = Listing.query.get_or_404(id)
+    if listing.user_id != current_user.id:
+        flash("You can only delete your own listings.", "error")
+        return redirect(url_for("index"))
+    Favorite.query.filter_by(listing_id=id).delete()
+    db.session.delete(listing)
+    db.session.commit()
+    flash("Listing deleted.", "success")
+    return redirect(url_for("my_listings"))
+
 @app.route("/favorite/<int:id>")
 @login_required
 def favorite(id):
