@@ -240,7 +240,10 @@ def messages():
     inbox = Message.query.filter(
         (Message.sender_id == current_user.id) | (Message.receiver_id == current_user.id)
     ).order_by(Message.timestamp.desc()).all()
-    return render_template("messages.html", messages=inbox)
+    users = {u.id: u for u in User.query.all()}
+    listings_map = {l.id: l for l in Listing.query.all()}
+    return render_template("messages.html", messages=inbox,
+                           users=users, listings_map=listings_map)
 
 @app.route("/chatbot", methods=["GET"])
 @login_required
