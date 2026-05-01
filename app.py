@@ -200,8 +200,20 @@ def delete_listing(id):
 @app.route("/favorite/<int:id>")
 @login_required
 def favorite(id):
-    db.session.add(Favorite(user_id=current_user.id, listing_id=id))
-    db.session.commit()
+    if not Favorite.query.filter_by(user_id=current_user.id, listing_id=id).first():
+        db.session.add(Favorite(user_id=current_user.id, listing_id=id))
+        db.session.commit()
+        flash("Saved to favorites.", "success")
+    return redirect(url_for("listing_detail", id=id))
+
+@app.route("/unfavorite/<int:id>", methods=["POST"])
+@login_required
+def unfavorite(id):
+    fav = Favorite.query.filter_by(user_id=current_user.id, listing_id=id).first()
+    if fav:
+        db.session.delete(fav)
+        db.session.commit()
+        flash("Removed from favorites.", "success")
     return redirect(url_for("favorites"))
 
 @app.route("/favorites")

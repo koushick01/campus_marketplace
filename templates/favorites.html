@@ -1,9 +1,51 @@
 {% extends "base.html" %}
+{% block title %}Favorites — Campus Marketplace{% endblock %}
+
 {% block content %}
-<h3>Favorites</h3>
-<ul>
-{% for l in listings %}
-  <li><a href="/listing/{{ l.id }}">{{ l.title }}</a></li>
-{% endfor %}
-</ul>
+<div class="page-header">
+  <h2><i class="bi bi-heart me-2" style="color:var(--primary)"></i>Saved Listings</h2>
+  <p class="text-muted mb-0">Items you've bookmarked.</p>
+</div>
+
+{% if listings %}
+<div class="d-flex flex-column gap-3">
+  {% for l in listings %}
+  {% if l %}
+  <div class="fav-card">
+    <div class="d-flex align-items-center gap-3">
+      {% if l.image %}
+        <img src="{{ url_for('static', filename='uploads/' + l.image) }}"
+             style="width:64px;height:52px;object-fit:cover;border-radius:8px" alt="">
+      {% else %}
+        <div style="width:64px;height:52px;background:#fdecea;border-radius:8px;
+                    display:flex;align-items:center;justify-content:center;color:var(--accent)">
+          <i class="bi bi-image"></i>
+        </div>
+      {% endif %}
+      <div>
+        <a href="{{ url_for('listing_detail', id=l.id) }}" class="fw-semibold d-block">
+          {{ l.title }}
+        </a>
+        <span class="badge-category me-2">{{ l.category or 'Other' }}</span>
+        <span class="fw-bold" style="color:var(--primary)">&#8377;{{ "%.2f"|format(l.price) }}</span>
+      </div>
+    </div>
+    <form method="post" action="{{ url_for('unfavorite', id=l.id) }}">
+      <button class="btn btn-outline-danger btn-sm"
+              title="Remove from favorites">
+        <i class="bi bi-heart-break"></i>
+      </button>
+    </form>
+  </div>
+  {% endif %}
+  {% endfor %}
+</div>
+
+{% else %}
+<div class="empty-state">
+  <div><i class="bi bi-heart"></i></div>
+  <h5 class="mt-2">No saved listings</h5>
+  <p class="mt-1">Browse the <a href="{{ url_for('index') }}">marketplace</a> and save items you like.</p>
+</div>
+{% endif %}
 {% endblock %}
