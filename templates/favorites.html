@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block content %}
+<h3>Favorites</h3>
+<ul>
+{% for l in listings %}
+  <li><a href="/listing/{{ l.id }}">{{ l.title }}</a></li>
+{% endfor %}
+</ul>
+{% endblock %}

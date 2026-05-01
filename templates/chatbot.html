@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block content %}
+<h3>AI Help</h3>
+<div id="/chatbot" class="border p-2 mb-2" style="height:200px; overflow-y:auto;"></div>
+<input id="msg" type="text" placeholder="Ask something..." />
+<button type="button" onclick="sendMessage()">AI Help</button>
+<div id="reply"></div>
+
+<script>
+async function sendMessage() {
+    const msg = document.getElementById("msg").value;
+    const res = await fetch("/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: msg })
+    });
+
+    const data = await res.json();
+    document.getElementById("reply").innerText = data.reply || data.error;
+}
+</script>
+
+
+{% endblock %}

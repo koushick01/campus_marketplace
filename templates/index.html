@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>Campus Marketplace</h2>
+
+<form method="get" class="mb-3">
+  <input class="form-control" name="q" placeholder="Search listings..." />
+</form>
+
+<div class="row">
+  {% for l in listings %}
+    <div class="col-md-4 mb-3">
+      <div class="card p-2">
+        {% if l.image %}
+          <img src="{{ url_for('static', filename='uploads/' + l.image) }}" class="img-fluid">
+        {% endif %}
+        <h5>{{ l.title }}</h5>
+        <p>${{ l.price }}</p>
+        <a href="/listing/{{ l.id }}" class="btn btn-sm btn-primary">View</a>
+      </div>
+    </div>
+  {% endfor %}
+</div>
+{% endblock %}

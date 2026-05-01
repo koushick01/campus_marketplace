@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+<h3>Messages</h3>
+<ul>
+{% for m in messages %}
+  <li>
+    {{ m.text }}  
+    <small class="text-muted">({{ m.timestamp }})</small>
+  </li>
+{% endfor %}
+</ul>
+{% endblock %}
