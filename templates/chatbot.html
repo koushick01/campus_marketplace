@@ -1,24 +1,84 @@
 {% extends "base.html" %}
+{% block title %}AI Help — Campus Marketplace{% endblock %}
+
 {% block content %}
-<h3>AI Help</h3>
-<div id="/chatbot" class="border p-2 mb-2" style="height:200px; overflow-y:auto;"></div>
-<input id="msg" type="text" placeholder="Ask something..." />
-<button type="button" onclick="sendMessage()">AI Help</button>
-<div id="reply"></div>
+<div class="row justify-content-center">
+  <div class="col-12 col-md-8 col-lg-6">
 
+    <div class="page-header">
+      <h2><i class="bi bi-robot me-2" style="color:var(--primary)"></i>AI Help</h2>
+      <p class="text-muted mb-0">Ask anything about buying or selling on CampusMarket.</p>
+    </div>
+
+    <!-- Chat window -->
+    <div class="chat-window mb-3" id="chatWindow">
+      <div class="chat-bubble bot">
+        Hi! I'm your campus marketplace assistant. Ask me anything — pricing tips, how to post, what to sell, anything!
+      </div>
+    </div>
+
+    <!-- Input bar -->
+    <div class="input-group">
+      <input id="msgInput" class="form-control" type="text"
+             placeholder="Ask something..." autocomplete="off">
+      <button class="btn btn-primary" id="sendBtn" onclick="sendMessage()">
+        <i class="bi bi-send"></i>
+      </button>
+    </div>
+    <div class="form-text mt-1">Powered by Google Gemini</div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
 <script>
-async function sendMessage() {
-    const msg = document.getElementById("msg").value;
-    const res = await fetch("/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: msg })
-    });
+const chatWindow = document.getElementById('chatWindow');
+const msgInput   = document.getElementById('msgInput');
+const sendBtn    = document.getElementById('sendBtn');
 
-    const data = await res.json();
-    document.getElementById("reply").innerText = data.reply || data.error;
+function appendBubble(text, role) {
+  const div = document.createElement('div');
+  div.className = 'chat-bubble ' + role;
+  div.textContent = text;
+  chatWindow.appendChild(div);
+  chatWindow.scrollTop = chatWindow.scrollHeight;
 }
+
+async function sendMessage() {
+  const text = msgInput.value.trim();
+  if (!text) return;
+
+  appendBubble(text, 'user');
+  msgInput.value = '';
+  sendBtn.disabled = true;
+
+  const thinking = document.createElement('div');
+  thinking.className = 'chat-bubble bot text-muted';
+  thinking.textContent = 'Thinking…';
+  chatWindow.appendChild(thinking);
+  chatWindow.scrollTop = chatWindow.scrollHeight;
+
+  try {
+    const res = await fetch('/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: text })
+    });
+    const data = await res.json();
+    thinking.remove();
+    appendBubble(data.reply || data.error || 'Something went wrong.', 'bot');
+  } catch {
+    thinking.remove();
+    appendBubble('Could not reach the AI service. Please try again.', 'bot');
+  } finally {
+    sendBtn.disabled = false;
+    msgInput.focus();
+  }
+}
+
+msgInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter') sendMessage();
+});
 </script>
-
-
 {% endblock %}
