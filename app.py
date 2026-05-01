@@ -96,11 +96,15 @@ def index():
 @app.route("/register", methods=["GET", "POST"])
 def register():
     if request.method == "POST":
-        user = User(username=request.form["username"],
+        username = request.form["username"].strip()
+        if User.query.filter_by(username=username).first():
+            flash("Username already taken. Please choose another.", "error")
+            return redirect(url_for("register"))
+        user = User(username=username,
                     password_hash=generate_password_hash(request.form["password"]))
         db.session.add(user)
         db.session.commit()
-        flash("Registered successfully!")
+        flash("Account created! Please log in.", "success")
         return redirect(url_for("login"))
     return render_template("register.html")
 
@@ -111,7 +115,7 @@ def login():
         if user and check_password_hash(user.password_hash, request.form["password"]):
             login_user(user)
             return redirect(url_for("index"))
-        flash("Invalid credentials")
+        flash("Invalid username or password.", "error")
     return render_template("login.html")
 
 @app.route("/logout")
@@ -274,17 +278,6 @@ def chat():
         return jsonify({"error": "AI service unavailable"}), 500
     
     
-@app.route("/list_models")
-@login_required
-def list_models():
-    try:
-        models = client.models.list()
-        names = [m.name for m in models]
-        return jsonify({"available_models": names})
-        
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
 
 
 
