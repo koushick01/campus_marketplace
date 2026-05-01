@@ -147,7 +147,13 @@ def create_listing():
 @app.route("/listing/<int:id>")
 def listing_detail(id):
     listing = Listing.query.get_or_404(id)
-    return render_template("listing_detail.html", listing=listing)
+    seller = User.query.get(listing.user_id)
+    already_saved = False
+    if current_user.is_authenticated:
+        already_saved = Favorite.query.filter_by(
+            user_id=current_user.id, listing_id=id).first() is not None
+    return render_template("listing_detail.html", listing=listing,
+                           seller=seller, already_saved=already_saved)
 
 @app.route("/favorite/<int:id>")
 @login_required
@@ -173,6 +179,10 @@ def messages():
                       text=request.form["text"])
         db.session.add(msg)
         db.session.commit()
+        flash("Message sent!", "success")
+        listing_id = request.form.get("listing_id")
+        if listing_id:
+            return redirect(url_for("listing_detail", id=listing_id))
     inbox = Message.query.filter(
         (Message.sender_id == current_user.id) | (Message.receiver_id == current_user.id)
     ).order_by(Message.timestamp.desc()).all()
