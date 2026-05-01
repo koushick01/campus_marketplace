@@ -140,8 +140,9 @@ def create_listing():
         )
         db.session.add(listing)
         db.session.commit()
+        flash("Listing posted successfully!", "success")
         return redirect(url_for("index"))
-    return render_template("create_listing.html")
+    return render_template("create_listing.html", categories=CATEGORIES)
 
 @app.route("/listing/<int:id>")
 def listing_detail(id):

@@ -1,12 +1,64 @@
 {% extends "base.html" %}
+{% block title %}Post a Listing — Campus Marketplace{% endblock %}
+
 {% block content %}
-<h3>Create Listing</h3>
-<form method="post" enctype="multipart/form-data">
-  <input class="form-control mb-2" name="title" placeholder="Title" required>
-  <textarea class="form-control mb-2" name="description" placeholder="Description"></textarea>
-  <input class="form-control mb-2" type="number" step="0.01" name="price" placeholder="Price" required>
-  <input class="form-control mb-2" name="category" placeholder="Category">
-  <input class="form-control mb-2" type="file" name="image">
-  <button class="btn btn-primary">Post</button>
-</form>
+<div class="row justify-content-center">
+  <div class="col-12 col-md-8 col-lg-6">
+
+    <div class="page-header">
+      <h2><i class="bi bi-plus-circle me-2" style="color:var(--primary)"></i>Post a Listing</h2>
+      <p class="text-muted mb-0">Fill in the details below to list your item.</p>
+    </div>
+
+    <div class="card border-0 shadow-sm p-4" style="border-radius:var(--radius)">
+      <form method="post" enctype="multipart/form-data">
+
+        <div class="mb-3">
+          <label class="form-label" for="title">Title <span class="text-danger">*</span></label>
+          <input id="title" class="form-control" name="title" placeholder="e.g. Engineering Maths Textbook" required>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label" for="category">Category <span class="text-danger">*</span></label>
+          <select id="category" class="form-select" name="category" required>
+            <option value="" disabled selected>Select a category</option>
+            {% for c in categories %}
+              <option value="{{ c }}">{{ c }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label" for="price">Price (₹) <span class="text-danger">*</span></label>
+          <div class="input-group">
+            <span class="input-group-text">₹</span>
+            <input id="price" class="form-control" type="number" step="0.01" min="0"
+                   name="price" placeholder="0.00" required>
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label" for="description">Description</label>
+          <textarea id="description" class="form-control" name="description" rows="4"
+                    placeholder="Describe the item — condition, edition, any details..."></textarea>
+        </div>
+
+        <div class="mb-4">
+          <label class="form-label" for="image">Photo</label>
+          <input id="image" class="form-control" type="file" name="image" accept=".png,.jpg,.jpeg">
+          <div class="form-text">PNG or JPG, max 500 KB.</div>
+        </div>
+
+        <div class="d-grid gap-2">
+          <button class="btn btn-primary" type="submit">
+            <i class="bi bi-send me-1"></i>Post Listing
+          </button>
+          <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">Cancel</a>
+        </div>
+
+      </form>
+    </div>
+
+  </div>
+</div>
 {% endblock %}
