@@ -1,24 +1,92 @@
 {% extends "base.html" %}
 
+{% block title %}Campus Marketplace — Buy & Sell on Campus{% endblock %}
+
 {% block content %}
-<h2>Campus Marketplace</h2>
 
-<form method="get" class="mb-3">
-  <input class="form-control" name="q" placeholder="Search listings..." />
-</form>
+<!-- Search & Filter bar -->
+<div class="row align-items-end g-3 mb-4">
+  <div class="col-12 col-md-6">
+    <form method="get" class="d-flex search-bar" id="searchForm">
+      <input class="form-control" name="q" value="{{ q }}" placeholder="Search listings...">
+      <input type="hidden" name="category" value="{{ selected_cat }}">
+      <button class="btn btn-primary" type="submit">
+        <i class="bi bi-search"></i>
+      </button>
+    </form>
+  </div>
+  <div class="col-12 col-md-6 d-flex gap-2 flex-wrap">
+    <select class="form-select" style="max-width:220px" onchange="applyFilter(this.value)" id="catFilter">
+      <option value="">All Categories</option>
+      {% for c in categories %}
+        <option value="{{ c }}" {% if c == selected_cat %}selected{% endif %}>{{ c }}</option>
+      {% endfor %}
+    </select>
+    {% if q or selected_cat %}
+    <a href="{{ url_for('index') }}" class="btn btn-outline-secondary btn-sm align-self-center">
+      <i class="bi bi-x-circle me-1"></i>Clear
+    </a>
+    {% endif %}
+  </div>
+</div>
 
-<div class="row">
+<!-- Results summary -->
+{% if q or selected_cat %}
+<p class="text-muted small mb-3">
+  {{ listings|length }} result{% if listings|length != 1 %}s{% endif %}
+  {% if q %}for "<strong>{{ q }}</strong>"{% endif %}
+  {% if selected_cat %}in <strong>{{ selected_cat }}</strong>{% endif %}
+</p>
+{% endif %}
+
+<!-- Listings grid -->
+{% if listings %}
+<div class="row g-4">
   {% for l in listings %}
-    <div class="col-md-4 mb-3">
-      <div class="card p-2">
-        {% if l.image %}
-          <img src="{{ url_for('static', filename='uploads/' + l.image) }}" class="img-fluid">
-        {% endif %}
-        <h5>{{ l.title }}</h5>
-        <p>${{ l.price }}</p>
-        <a href="/listing/{{ l.id }}" class="btn btn-sm btn-primary">View</a>
+  <div class="col-6 col-md-4 col-lg-3">
+    <div class="listing-card">
+      {% if l.image %}
+        <img src="{{ url_for('static', filename='uploads/' + l.image) }}"
+             class="card-img-top" alt="{{ l.title }}">
+      {% else %}
+        <div class="card-img-placeholder">
+          <i class="bi bi-image"></i>
+        </div>
+      {% endif %}
+      <div class="card-body d-flex flex-column gap-1">
+        <span class="badge-category">{{ l.category or 'Other' }}</span>
+        <div class="card-title mt-1">{{ l.title }}</div>
+        <div class="price-tag">${{ "%.2f"|format(l.price) }}</div>
+        <a href="{{ url_for('listing_detail', id=l.id) }}"
+           class="btn btn-primary btn-sm mt-auto">View</a>
       </div>
     </div>
+  </div>
   {% endfor %}
 </div>
+
+{% else %}
+<div class="empty-state">
+  <div><i class="bi bi-search"></i></div>
+  <h5 class="mt-2">No listings found</h5>
+  <p class="mt-1">Try a different search or category, or
+    {% if current_user.is_authenticated %}
+      <a href="{{ url_for('create_listing') }}">post one yourself</a>.
+    {% else %}
+      <a href="{{ url_for('register') }}">sign up</a> to post the first one.
+    {% endif %}
+  </p>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function applyFilter(cat) {
+  const url = new URL(window.location.href);
+  url.searchParams.set('category', cat);
+  window.location.href = url.toString();
+}
+</script>
 {% endblock %}

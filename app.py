@@ -27,6 +27,19 @@ client = genai.Client(api_key=GEMINI_API_KEY)
 
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg"}
 
+CATEGORIES = [
+    "Books & Notes",
+    "Electronics",
+    "Clothing & Accessories",
+    "Furniture & Dorm",
+    "Sports & Fitness",
+    "Stationery & Supplies",
+    "Bikes & Transport",
+    "Food & Meal Plans",
+    "Services & Tutoring",
+    "Other",
+]
+
 # ---------------- Models ----------------
 
 class User(db.Model, UserMixin):
@@ -70,12 +83,15 @@ def allowed_file(filename):
 
 @app.route("/")
 def index():
-    q = request.args.get("q", "")
+    q = request.args.get("q", "").strip()
+    cat = request.args.get("category", "")
+    query = Listing.query
     if q:
-        listings = Listing.query.filter(Listing.title.contains(q)).all()
-    else:
-        listings = Listing.query.order_by(Listing.created_at.desc()).all()
-    return render_template("index.html", listings=listings)
+        query = query.filter(Listing.title.ilike(f"%{q}%"))
+    if cat:
+        query = query.filter(Listing.category == cat)
+    listings = query.order_by(Listing.created_at.desc()).all()
+    return render_template("index.html", listings=listings, q=q, selected_cat=cat, categories=CATEGORIES)
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
