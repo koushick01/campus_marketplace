@@ -1,4 +1,5 @@
 import os
+import uuid
 from flask import render_template, redirect, url_for, request, flash, jsonify
 from flask_login import login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -9,12 +10,10 @@ from app import app
 from extensions import db
 from models import User, Listing, Favorite, Message
 
-# ---------------- Gemini client ----------------
+# ---------------- Gemini client (lazy — app works even if key is missing) ----------------
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-if not GEMINI_API_KEY:
-    raise ValueError("Missing GEMINI_API_KEY in .env")
-client = genai.Client(api_key=GEMINI_API_KEY)
+client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
 
 # ---------------- Constants ----------------
 
@@ -33,8 +32,21 @@ CATEGORIES = [
     "Other",
 ]
 
+# ---------------- Helpers ----------------
+
 def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+def save_upload_image(file):
+    """Save uploaded image with a UUID prefix. Returns filename or None."""
+    if file and allowed_file(file.filename):
+        ext = file.filename.rsplit(".", 1)[1].lower()
+        filename = f"{uuid.uuid4().hex}.{ext}"
+        file.save(os.path.join(app.config["UPLOAD_FOLDER"], filename))
+        return filename
+    return None
+
 
 # ---------------- Routes ----------------
 
@@ -98,15 +110,19 @@ def logout():
 @login_required
 def create_listing():
     if request.method == "POST":
-        image = request.files["image"]
-        filename = None
-        if image and allowed_file(image.filename):
-            filename = secure_filename(image.filename)
-            image.save(os.path.join(app.config["UPLOAD_FOLDER"], filename))
+        try:
+            price = float(request.form["price"])
+            if price < 0:
+                raise ValueError
+        except (ValueError, TypeError):
+            flash("Please enter a valid price.", "error")
+            return render_template("create_listing.html", categories=CATEGORIES)
+
+        filename = save_upload_image(request.files.get("image"))
         listing = Listing(
             title=request.form["title"],
             description=request.form["description"],
-            price=float(request.form["price"]),
+            price=price,
             category=request.form["category"],
             image=filename,
             user_id=current_user.id
@@ -120,8 +136,11 @@ def create_listing():
 
 @app.route("/listing/<int:id>")
 def listing_detail(id):
-    listing = Listing.query.get_or_404(id)
-    seller = User.query.get(listing.user_id)
+    listing = db.session.get(Listing, id)
+    if listing is None:
+        flash("Listing not found.", "error")
+        return redirect(url_for("index"))
+    seller = db.session.get(User, listing.user_id)
     already_saved = False
     if current_user.is_authenticated:
         already_saved = Favorite.query.filter_by(
@@ -141,20 +160,29 @@ def my_listings():
 @app.route("/listing/<int:id>/edit", methods=["GET", "POST"])
 @login_required
 def edit_listing(id):
-    listing = Listing.query.get_or_404(id)
+    listing = db.session.get(Listing, id)
+    if listing is None:
+        flash("Listing not found.", "error")
+        return redirect(url_for("index"))
     if listing.user_id != current_user.id:
         flash("You can only edit your own listings.", "error")
         return redirect(url_for("index"))
     if request.method == "POST":
+        try:
+            price = float(request.form["price"])
+            if price < 0:
+                raise ValueError
+        except (ValueError, TypeError):
+            flash("Please enter a valid price.", "error")
+            return render_template("edit_listing.html", listing=listing, categories=CATEGORIES)
+
         listing.title = request.form["title"]
         listing.description = request.form["description"]
-        listing.price = float(request.form["price"])
+        listing.price = price
         listing.category = request.form["category"]
-        image = request.files.get("image")
-        if image and allowed_file(image.filename):
-            filename = secure_filename(image.filename)
-            image.save(os.path.join(app.config["UPLOAD_FOLDER"], filename))
-            listing.image = filename
+        new_image = save_upload_image(request.files.get("image"))
+        if new_image:
+            listing.image = new_image
         db.session.commit()
         flash("Listing updated.", "success")
         return redirect(url_for("my_listings"))
@@ -164,18 +192,22 @@ def edit_listing(id):
 @app.route("/listing/<int:id>/delete", methods=["POST"])
 @login_required
 def delete_listing(id):
-    listing = Listing.query.get_or_404(id)
+    listing = db.session.get(Listing, id)
+    if listing is None:
+        flash("Listing not found.", "error")
+        return redirect(url_for("my_listings"))
     if listing.user_id != current_user.id:
         flash("You can only delete your own listings.", "error")
         return redirect(url_for("index"))
     Favorite.query.filter_by(listing_id=id).delete()
+    Message.query.filter_by(listing_id=id).delete()
     db.session.delete(listing)
     db.session.commit()
     flash("Listing deleted.", "success")
     return redirect(url_for("my_listings"))
 
 
-@app.route("/favorite/<int:id>")
+@app.route("/favorite/<int:id>", methods=["POST"])
 @login_required
 def favorite(id):
     if not Favorite.query.filter_by(user_id=current_user.id, listing_id=id).first():
@@ -200,7 +232,8 @@ def unfavorite(id):
 @login_required
 def favorites():
     favs = Favorite.query.filter_by(user_id=current_user.id).all()
-    listings = [Listing.query.get(f.listing_id) for f in favs]
+    listing_ids = [f.listing_id for f in favs]
+    listings = Listing.query.filter(Listing.id.in_(listing_ids)).all() if listing_ids else []
     return render_template("favorites.html", listings=listings)
 
 
@@ -208,23 +241,37 @@ def favorites():
 @login_required
 def messages():
     if request.method == "POST":
+        try:
+            receiver_id = int(request.form["receiver_id"])
+            listing_id  = int(request.form["listing_id"])
+        except (ValueError, TypeError):
+            flash("Invalid message request.", "error")
+            return redirect(url_for("index"))
+
+        if receiver_id == current_user.id:
+            flash("You cannot message yourself.", "error")
+            return redirect(url_for("listing_detail", id=listing_id))
+
         msg = Message(
             sender_id=current_user.id,
-            receiver_id=request.form["receiver_id"],
-            listing_id=request.form["listing_id"],
+            receiver_id=receiver_id,
+            listing_id=listing_id,
             text=request.form["text"]
         )
         db.session.add(msg)
         db.session.commit()
         flash("Message sent!", "success")
-        listing_id = request.form.get("listing_id")
-        if listing_id:
-            return redirect(url_for("listing_detail", id=listing_id))
+        return redirect(url_for("listing_detail", id=listing_id))
+
     inbox = Message.query.filter(
         (Message.sender_id == current_user.id) | (Message.receiver_id == current_user.id)
     ).order_by(Message.timestamp.desc()).all()
-    users = {u.id: u for u in User.query.all()}
-    listings_map = {l.id: l for l in Listing.query.all()}
+
+    sender_ids  = {m.sender_id for m in inbox} | {m.receiver_id for m in inbox}
+    listing_ids = {m.listing_id for m in inbox if m.listing_id}
+    users        = {u.id: u for u in User.query.filter(User.id.in_(sender_ids)).all()}
+    listings_map = {l.id: l for l in Listing.query.filter(Listing.id.in_(listing_ids)).all()}
+
     return render_template("messages.html", messages=inbox,
                            users=users, listings_map=listings_map)
 
@@ -238,6 +285,8 @@ def chatbot_page():
 @app.route("/chat", methods=["POST"])
 @login_required
 def chat():
+    if not client:
+        return jsonify({"error": "AI service is not configured."}), 503
     if not request.is_json:
         return jsonify({"error": "Request must be JSON"}), 415
     data = request.get_json()
@@ -252,4 +301,10 @@ def chat():
         return jsonify({"reply": response.text})
     except Exception as e:
         print("Gemini Error:", e)
-        return jsonify({"error": "AI service unavailable"}), 500
+        return jsonify({"error": "AI service unavailable. Please try again."}), 500
+
+
+@app.errorhandler(413)
+def too_large(e):
+    flash("Image is too large. Maximum size is 500 KB.", "error")
+    return redirect(request.referrer or url_for("index"))

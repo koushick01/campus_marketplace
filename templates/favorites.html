@@ -27,7 +27,7 @@
           {{ l.title }}
         </a>
         <span class="badge-category me-2">{{ l.category or 'Other' }}</span>
-        <span class="fw-bold" style="color:var(--primary)">&#8377;{{ "%.2f"|format(l.price) }}</span>
+        <span class="fw-bold" style="color:var(--primary)">${{ "%.2f"|format(l.price) }}</span>
       </div>
     </div>
     <form method="post" action="{{ url_for('unfavorite', id=l.id) }}">

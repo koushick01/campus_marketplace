@@ -27,7 +27,7 @@
 
     <span class="badge-category">{{ listing.category or 'Other' }}</span>
     <h2 class="mt-2 mb-1 fw-bold">{{ listing.title }}</h2>
-    <div class="detail-price mb-3">₹{{ "%.2f"|format(listing.price) }}</div>
+    <div class="detail-price mb-3">${{ "%.2f"|format(listing.price) }}</div>
 
     {% if listing.description %}
     <p class="text-muted mb-3">{{ listing.description }}</p>
@@ -52,10 +52,11 @@
             <i class="bi bi-heart-fill me-1"></i>Saved
           </span>
         {% else %}
-          <a href="{{ url_for('favorite', id=listing.id) }}"
-             class="btn btn-outline-primary btn-sm mb-3">
-            <i class="bi bi-heart me-1"></i>Save to Favorites
-          </a>
+          <form method="post" action="{{ url_for('favorite', id=listing.id) }}" class="d-inline mb-3">
+            <button type="submit" class="btn btn-outline-primary btn-sm">
+              <i class="bi bi-heart me-1"></i>Save to Favorites
+            </button>
+          </form>
         {% endif %}
 
         <!-- Message seller -->
