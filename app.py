@@ -45,6 +45,7 @@ CATEGORIES = [
 class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(200), nullable=False)
 
 class Listing(db.Model):
@@ -97,10 +98,14 @@ def index():
 def register():
     if request.method == "POST":
         username = request.form["username"].strip()
+        email = request.form["email"].strip().lower()
         if User.query.filter_by(username=username).first():
             flash("Username already taken. Please choose another.", "error")
             return redirect(url_for("register"))
-        user = User(username=username,
+        if User.query.filter_by(email=email).first():
+            flash("An account with that email already exists.", "error")
+            return redirect(url_for("register"))
+        user = User(username=username, email=email,
                     password_hash=generate_password_hash(request.form["password"]))
         db.session.add(user)
         db.session.commit()
@@ -111,11 +116,15 @@ def register():
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        user = User.query.filter_by(username=request.form["username"]).first()
+        identifier = request.form["identifier"].strip()
+        if "@" in identifier:
+            user = User.query.filter_by(email=identifier.lower()).first()
+        else:
+            user = User.query.filter_by(username=identifier).first()
         if user and check_password_hash(user.password_hash, request.form["password"]):
             login_user(user)
             return redirect(url_for("index"))
-        flash("Invalid username or password.", "error")
+        flash("Invalid username/email or password.", "error")
     return render_template("login.html")
 
 @app.route("/logout")
