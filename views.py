@@ -9,6 +9,7 @@ from google import genai
 from app import app
 from extensions import db
 from models import User, Listing, Favorite, Message
+from constants import CATEGORIES
 
 # ---------------- Gemini client (lazy — app works even if key is missing) ----------------
 
@@ -18,19 +19,6 @@ client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
 # ---------------- Constants ----------------
 
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg"}
-
-CATEGORIES = [
-    "Books & Notes",
-    "Electronics",
-    "Clothing & Accessories",
-    "Furniture & Dorm",
-    "Sports & Fitness",
-    "Stationery & Supplies",
-    "Bikes & Transport",
-    "Food & Meal Plans",
-    "Services & Tutoring",
-    "Other",
-]
 
 # ---------------- Helpers ----------------
 
@@ -140,13 +128,12 @@ def listing_detail(id):
     if listing is None:
         flash("Listing not found.", "error")
         return redirect(url_for("index"))
-    seller = db.session.get(User, listing.user_id)
     already_saved = False
     if current_user.is_authenticated:
         already_saved = Favorite.query.filter_by(
             user_id=current_user.id, listing_id=id).first() is not None
     return render_template("listing_detail.html", listing=listing,
-                           seller=seller, already_saved=already_saved)
+                           seller=listing.user, already_saved=already_saved)
 
 
 @app.route("/my_listings")
@@ -267,13 +254,7 @@ def messages():
         (Message.sender_id == current_user.id) | (Message.receiver_id == current_user.id)
     ).order_by(Message.timestamp.desc()).all()
 
-    sender_ids  = {m.sender_id for m in inbox} | {m.receiver_id for m in inbox}
-    listing_ids = {m.listing_id for m in inbox if m.listing_id}
-    users        = {u.id: u for u in User.query.filter(User.id.in_(sender_ids)).all()}
-    listings_map = {l.id: l for l in Listing.query.filter(Listing.id.in_(listing_ids)).all()}
-
-    return render_template("messages.html", messages=inbox,
-                           users=users, listings_map=listings_map)
+    return render_template("messages.html", messages=inbox)
 
 
 @app.route("/chatbot")

@@ -2,5 +2,5 @@ Flask
 Flask-Login
 Flask-SQLAlchemy
 python-dotenv
-google-generativeai
+google-genai
 Pillow
