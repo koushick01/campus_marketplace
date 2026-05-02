@@ -21,6 +21,7 @@
         <th>Title</th>
         <th>Category</th>
         <th>Price</th>
+        <th>Status</th>
         <th>Posted</th>
         <th class="text-end">Actions</th>
       </tr>
@@ -30,11 +31,13 @@
       <tr class="my-listing-row">
         <td>
           {% if l.image %}
-            <img src="{{ url_for('static', filename='uploads/' + l.image) }}" alt="">
+            <img src="{{ url_for('static', filename='uploads/' + l.image) }}"
+                 alt="Thumbnail for {{ l.title }}"
+                 {% if l.status == 'sold' %}style="filter:grayscale(60%)"{% endif %}>
           {% else %}
             <div style="width:56px;height:44px;background:#fdecea;border-radius:6px;
                         display:flex;align-items:center;justify-content:center;
-                        color:var(--accent)">
+                        color:var(--accent)" aria-hidden="true">
               <i class="bi bi-image"></i>
             </div>
           {% endif %}
@@ -46,17 +49,33 @@
         </td>
         <td><span class="badge-category">{{ l.category or 'Other' }}</span></td>
         <td class="fw-bold" style="color:var(--primary)">${{ "%.2f"|format(l.price) }}</td>
+        <td>
+          {% if l.status == 'sold' %}
+            <span class="badge text-white" style="background:#555">Sold</span>
+          {% else %}
+            <span class="badge text-white" style="background:var(--success)">Available</span>
+          {% endif %}
+        </td>
         <td class="text-muted small">{{ l.created_at.strftime('%d %b %Y') }}</td>
         <td class="text-end">
           <a href="{{ url_for('edit_listing', id=l.id) }}"
-             class="btn btn-outline-primary btn-sm me-1">
-            <i class="bi bi-pencil"></i>
+             class="btn btn-outline-primary btn-sm me-1"
+             aria-label="Edit {{ l.title }}">
+            <i class="bi bi-pencil" aria-hidden="true"></i>
           </a>
+          <form method="post" action="{{ url_for('mark_sold', id=l.id) }}" class="d-inline">
+            <button class="btn btn-sm me-1 {% if l.status == 'sold' %}btn-outline-success{% else %}btn-outline-secondary{% endif %}"
+                    aria-label="{{ 'Relist' if l.status == 'sold' else 'Mark as sold' }} {{ l.title }}"
+                    title="{{ 'Relist as available' if l.status == 'sold' else 'Mark as sold' }}">
+              <i class="bi bi-{% if l.status == 'sold' %}arrow-counterclockwise{% else %}check-circle{% endif %}" aria-hidden="true"></i>
+            </button>
+          </form>
           <form method="post" action="{{ url_for('delete_listing', id=l.id) }}"
                 class="d-inline"
                 onsubmit="return confirm('Delete this listing?')">
-            <button class="btn btn-outline-danger btn-sm">
-              <i class="bi bi-trash"></i>
+            <button class="btn btn-outline-danger btn-sm"
+                    aria-label="Delete {{ l.title }}">
+              <i class="bi bi-trash" aria-hidden="true"></i>
             </button>
           </form>
         </td>

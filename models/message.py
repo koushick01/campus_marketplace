@@ -9,6 +9,7 @@ class Message(db.Model):
     listing_id  = db.Column(db.Integer, db.ForeignKey("listing.id"), nullable=True)
     text        = db.Column(db.Text, nullable=False)
     timestamp   = db.Column(db.DateTime, default=datetime.utcnow)
+    is_read     = db.Column(db.Boolean, default=False)
 
     sender  = db.relationship("User", foreign_keys=[sender_id])
     receiver = db.relationship("User", foreign_keys=[receiver_id])

@@ -19,6 +19,7 @@ client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
 # ---------------- Constants ----------------
 
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg"}
+CONDITIONS = ["New", "Like New", "Good", "Fair", "Poor"]
 
 # ---------------- Helpers ----------------
 
@@ -36,20 +37,49 @@ def save_upload_image(file):
     return None
 
 
+# ---------------- Context processor ----------------
+
+@app.context_processor
+def inject_unread_count():
+    if current_user.is_authenticated:
+        count = Message.query.filter_by(receiver_id=current_user.id, is_read=False).count()
+        return {"unread_count": count}
+    return {"unread_count": 0}
+
+
 # ---------------- Routes ----------------
 
 @app.route("/")
 def index():
     q = request.args.get("q", "").strip()
     cat = request.args.get("category", "")
+    min_price = request.args.get("min_price", "").strip()
+    max_price = request.args.get("max_price", "").strip()
+    show_sold = request.args.get("show_sold", "") == "1"
+
     query = Listing.query
     if q:
         query = query.filter(Listing.title.ilike(f"%{q}%"))
     if cat:
         query = query.filter(Listing.category == cat)
+    if not show_sold:
+        query = query.filter(Listing.status == "available")
+    if min_price:
+        try:
+            query = query.filter(Listing.price >= float(min_price))
+        except ValueError:
+            pass
+    if max_price:
+        try:
+            query = query.filter(Listing.price <= float(max_price))
+        except ValueError:
+            pass
+
     listings = query.order_by(Listing.created_at.desc()).all()
     return render_template("index.html", listings=listings, q=q,
-                           selected_cat=cat, categories=CATEGORIES)
+                           selected_cat=cat, categories=CATEGORIES,
+                           min_price=min_price, max_price=max_price,
+                           show_sold=show_sold)
 
 
 @app.route("/register", methods=["GET", "POST"])
@@ -104,7 +134,8 @@ def create_listing():
                 raise ValueError
         except (ValueError, TypeError):
             flash("Please enter a valid price.", "error")
-            return render_template("create_listing.html", categories=CATEGORIES)
+            return render_template("create_listing.html", categories=CATEGORIES,
+                                   conditions=CONDITIONS)
 
         filename = save_upload_image(request.files.get("image"))
         listing = Listing(
@@ -112,6 +143,8 @@ def create_listing():
             description=request.form["description"],
             price=price,
             category=request.form["category"],
+            condition=request.form.get("condition") or None,
+            is_negotiable=request.form.get("is_negotiable") == "on",
             image=filename,
             user_id=current_user.id
         )
@@ -119,7 +152,7 @@ def create_listing():
         db.session.commit()
         flash("Listing posted successfully!", "success")
         return redirect(url_for("index"))
-    return render_template("create_listing.html", categories=CATEGORIES)
+    return render_template("create_listing.html", categories=CATEGORIES, conditions=CONDITIONS)
 
 
 @app.route("/listing/<int:id>")
@@ -134,6 +167,25 @@ def listing_detail(id):
             user_id=current_user.id, listing_id=id).first() is not None
     return render_template("listing_detail.html", listing=listing,
                            seller=listing.user, already_saved=already_saved)
+
+
+@app.route("/listing/<int:id>/mark_sold", methods=["POST"])
+@login_required
+def mark_sold(id):
+    listing = db.session.get(Listing, id)
+    if listing is None:
+        flash("Listing not found.", "error")
+        return redirect(url_for("my_listings"))
+    if listing.user_id != current_user.id:
+        flash("You can only update your own listings.", "error")
+        return redirect(url_for("index"))
+    listing.status = "available" if listing.status == "sold" else "sold"
+    db.session.commit()
+    if listing.status == "sold":
+        flash("Listing marked as sold.", "success")
+    else:
+        flash("Listing relisted as available.", "success")
+    return redirect(url_for("my_listings"))
 
 
 @app.route("/my_listings")
@@ -161,19 +213,23 @@ def edit_listing(id):
                 raise ValueError
         except (ValueError, TypeError):
             flash("Please enter a valid price.", "error")
-            return render_template("edit_listing.html", listing=listing, categories=CATEGORIES)
+            return render_template("edit_listing.html", listing=listing,
+                                   categories=CATEGORIES, conditions=CONDITIONS)
 
         listing.title = request.form["title"]
         listing.description = request.form["description"]
         listing.price = price
         listing.category = request.form["category"]
+        listing.condition = request.form.get("condition") or None
+        listing.is_negotiable = request.form.get("is_negotiable") == "on"
         new_image = save_upload_image(request.files.get("image"))
         if new_image:
             listing.image = new_image
         db.session.commit()
         flash("Listing updated.", "success")
         return redirect(url_for("my_listings"))
-    return render_template("edit_listing.html", listing=listing, categories=CATEGORIES)
+    return render_template("edit_listing.html", listing=listing,
+                           categories=CATEGORIES, conditions=CONDITIONS)
 
 
 @app.route("/listing/<int:id>/delete", methods=["POST"])
@@ -250,11 +306,26 @@ def messages():
         flash("Message sent!", "success")
         return redirect(url_for("listing_detail", id=listing_id))
 
+    # Mark received messages as read
+    Message.query.filter_by(receiver_id=current_user.id, is_read=False).update({"is_read": True})
+    db.session.commit()
+
     inbox = Message.query.filter(
         (Message.sender_id == current_user.id) | (Message.receiver_id == current_user.id)
     ).order_by(Message.timestamp.desc()).all()
 
     return render_template("messages.html", messages=inbox)
+
+
+@app.route("/user/<username>")
+def user_profile(username):
+    seller = User.query.filter_by(username=username).first()
+    if seller is None:
+        flash("User not found.", "error")
+        return redirect(url_for("index"))
+    listings = Listing.query.filter_by(user_id=seller.id)\
+                            .order_by(Listing.created_at.desc()).all()
+    return render_template("profile.html", seller=seller, listings=listings)
 
 
 @app.route("/chatbot")
@@ -274,10 +345,24 @@ def chat():
     user_msg = (data or {}).get("message", "").strip()
     if not user_msg:
         return jsonify({"reply": "Please type a message."})
+
+    recent = Listing.query.filter_by(status="available")\
+                          .order_by(Listing.created_at.desc()).limit(10).all()
+    listing_context = "\n".join(
+        f"- {l.title} (${l.price}, {l.category})" for l in recent
+    ) or "No listings currently available."
+
+    system_prompt = (
+        "You are a helpful assistant for Campus Marketplace, a student buy-and-sell platform. "
+        "Help users find items, understand how the platform works, and answer general questions. "
+        "Keep responses concise and friendly.\n\n"
+        f"Recent available listings on the platform:\n{listing_context}"
+    )
+
     try:
         response = client.models.generate_content(
             model="models/gemini-2.5-flash",
-            contents=user_msg
+            contents=f"{system_prompt}\n\nUser: {user_msg}"
         )
         return jsonify({"reply": response.text})
     except Exception as e:

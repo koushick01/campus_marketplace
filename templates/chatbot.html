@@ -11,7 +11,8 @@
     </div>
 
     <!-- Chat window -->
-    <div class="chat-window mb-3" id="chatWindow">
+    <div class="chat-window mb-3" id="chatWindow"
+         role="log" aria-live="polite" aria-label="Chat messages">
       <div class="chat-bubble bot">
         Hi! I'm your campus marketplace assistant. Ask me anything — pricing tips, how to post, what to sell, anything!
       </div>
@@ -19,10 +20,12 @@
 
     <!-- Input bar -->
     <div class="input-group">
+      <label for="msgInput" class="visually-hidden">Type your message</label>
       <input id="msgInput" class="form-control" type="text"
              placeholder="Ask something..." autocomplete="off">
-      <button class="btn btn-primary" id="sendBtn" onclick="sendMessage()">
-        <i class="bi bi-send"></i>
+      <button class="btn btn-primary" id="sendBtn" onclick="sendMessage()"
+              aria-label="Send message">
+        <i class="bi bi-send" aria-hidden="true"></i>
       </button>
     </div>
     <div class="form-text mt-1">Powered by Google Gemini</div>
@@ -45,13 +48,18 @@ function appendBubble(text, role) {
   chatWindow.scrollTop = chatWindow.scrollHeight;
 }
 
+function setInputState(disabled) {
+  msgInput.disabled = disabled;
+  sendBtn.disabled  = disabled;
+}
+
 async function sendMessage() {
   const text = msgInput.value.trim();
   if (!text) return;
 
   appendBubble(text, 'user');
   msgInput.value = '';
-  sendBtn.disabled = true;
+  setInputState(true);
 
   const thinking = document.createElement('div');
   thinking.className = 'chat-bubble bot text-muted';
@@ -72,13 +80,13 @@ async function sendMessage() {
     thinking.remove();
     appendBubble('Could not reach the AI service. Please try again.', 'bot');
   } finally {
-    sendBtn.disabled = false;
+    setInputState(false);
     msgInput.focus();
   }
 }
 
 msgInput.addEventListener('keydown', e => {
-  if (e.key === 'Enter') sendMessage();
+  if (e.key === 'Enter' && !e.shiftKey) sendMessage();
 });
 </script>
 {% endblock %}

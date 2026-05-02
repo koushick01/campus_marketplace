@@ -16,34 +16,44 @@
       <a class="navbar-brand" href="{{ url_for('index') }}">
         Campus<span>Market</span>
       </a>
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navMenu">
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
+              data-bs-target="#navMenu" aria-controls="navMenu"
+              aria-expanded="false" aria-label="Toggle navigation">
         <span class="navbar-toggler-icon"></span>
       </button>
       <div class="collapse navbar-collapse" id="navMenu">
         <ul class="navbar-nav me-auto mb-2 mb-lg-0">
           <li class="nav-item">
-            <a class="nav-link" href="{{ url_for('index') }}">
+            <a class="nav-link {% if request.endpoint == 'index' %}active{% endif %}"
+               href="{{ url_for('index') }}">
               <i class="bi bi-house-door me-1"></i>Home
             </a>
           </li>
           {% if current_user.is_authenticated %}
           <li class="nav-item">
-            <a class="nav-link" href="{{ url_for('my_listings') }}">
+            <a class="nav-link {% if request.endpoint == 'my_listings' %}active{% endif %}"
+               href="{{ url_for('my_listings') }}">
               <i class="bi bi-box-seam me-1"></i>My Listings
             </a>
           </li>
           <li class="nav-item">
-            <a class="nav-link" href="{{ url_for('favorites') }}">
+            <a class="nav-link {% if request.endpoint == 'favorites' %}active{% endif %}"
+               href="{{ url_for('favorites') }}">
               <i class="bi bi-heart me-1"></i>Favorites
             </a>
           </li>
           <li class="nav-item">
-            <a class="nav-link" href="{{ url_for('messages') }}">
+            <a class="nav-link {% if request.endpoint == 'messages' %}active{% endif %}"
+               href="{{ url_for('messages') }}">
               <i class="bi bi-chat-dots me-1"></i>Messages
+              {% if unread_count > 0 %}
+                <span class="unread-badge">{{ unread_count }}</span>
+              {% endif %}
             </a>
           </li>
           <li class="nav-item">
-            <a class="nav-link" href="{{ url_for('chatbot_page') }}">
+            <a class="nav-link {% if request.endpoint == 'chatbot_page' %}active{% endif %}"
+               href="{{ url_for('chatbot_page') }}">
               <i class="bi bi-robot me-1"></i>AI Help
             </a>
           </li>
@@ -85,7 +95,7 @@
         {% for category, message in messages %}
           <div class="alert alert-{{ 'danger' if category == 'error' else 'success' if category == 'success' else 'info' }} alert-dismissible fade show mt-3" role="alert">
             {{ message }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
           </div>
         {% endfor %}
       {% endif %}
@@ -100,7 +110,7 @@
   <!-- Footer -->
   <footer class="site-footer text-center">
     <div class="container">
-      &copy; 2025 CampusMarket &mdash; Buy &amp; Sell on Campus
+      &copy; 2026 CampusMarket &mdash; Buy &amp; Sell on Campus
     </div>
   </footer>
 

@@ -5,33 +5,52 @@
 {% block content %}
 
 <!-- Search & Filter bar -->
-<div class="row align-items-end g-3 mb-4">
-  <div class="col-12 col-md-6">
-    <form method="get" class="d-flex search-bar" id="searchForm">
-      <input class="form-control" name="q" value="{{ q }}" placeholder="Search listings...">
-      <input type="hidden" name="category" value="{{ selected_cat }}">
-      <button class="btn btn-primary" type="submit">
-        <i class="bi bi-search"></i>
-      </button>
-    </form>
+<form method="get" class="mb-4" id="searchForm">
+  <div class="row g-2 mb-2">
+    <div class="col-12 col-md-7">
+      <label for="searchInput" class="visually-hidden">Search listings</label>
+      <div class="d-flex search-bar">
+        <input id="searchInput" class="form-control" name="q" value="{{ q }}"
+               placeholder="Search listings...">
+        <button class="btn btn-primary" type="submit" aria-label="Search">
+          <i class="bi bi-search"></i>
+        </button>
+      </div>
+    </div>
   </div>
-  <div class="col-12 col-md-6 d-flex gap-2 flex-wrap">
-    <select class="form-select" style="max-width:220px" onchange="applyFilter(this.value)" id="catFilter">
+  <div class="filter-bar">
+    <label for="catFilter" class="visually-hidden">Filter by category</label>
+    <select id="catFilter" class="form-select" name="category" onchange="this.form.submit()">
       <option value="">All Categories</option>
       {% for c in categories %}
         <option value="{{ c }}" {% if c == selected_cat %}selected{% endif %}>{{ c }}</option>
       {% endfor %}
     </select>
-    {% if q or selected_cat %}
-    <a href="{{ url_for('index') }}" class="btn btn-outline-secondary btn-sm align-self-center">
+
+    <label for="minPrice" class="visually-hidden">Minimum price</label>
+    <input id="minPrice" class="form-control" type="number" name="min_price"
+           min="0" step="0.01" placeholder="Min $" value="{{ min_price }}">
+
+    <label for="maxPrice" class="visually-hidden">Maximum price</label>
+    <input id="maxPrice" class="form-control" type="number" name="max_price"
+           min="0" step="0.01" placeholder="Max $" value="{{ max_price }}">
+
+    <div class="form-check mb-0 align-self-center">
+      <input class="form-check-input" type="checkbox" name="show_sold" value="1"
+             id="showSold" onchange="this.form.submit()" {% if show_sold %}checked{% endif %}>
+      <label class="form-check-label small" for="showSold">Show sold</label>
+    </div>
+
+    {% if q or selected_cat or min_price or max_price or show_sold %}
+    <a href="{{ url_for('index') }}" class="btn btn-outline-secondary btn-sm">
       <i class="bi bi-x-circle me-1"></i>Clear
     </a>
     {% endif %}
   </div>
-</div>
+</form>
 
 <!-- Results summary -->
-{% if q or selected_cat %}
+{% if q or selected_cat or min_price or max_price %}
 <p class="text-muted small mb-3">
   {{ listings|length }} result{% if listings|length != 1 %}s{% endif %}
   {% if q %}for "<strong>{{ q }}</strong>"{% endif %}
@@ -44,13 +63,16 @@
 <div class="row g-4">
   {% for l in listings %}
   <div class="col-6 col-md-4 col-lg-3">
-    <div class="listing-card">
+    <div class="listing-card {% if l.status == 'sold' %}sold{% endif %}">
+      {% if l.status == 'sold' %}
+        <div class="sold-ribbon">Sold</div>
+      {% endif %}
       {% if l.image %}
         <img src="{{ url_for('static', filename='uploads/' + l.image) }}"
              class="card-img-top" alt="{{ l.title }}">
       {% else %}
         <div class="card-img-placeholder">
-          <i class="bi bi-image"></i>
+          <i class="bi bi-image" aria-hidden="true"></i>
         </div>
       {% endif %}
       <div class="card-body d-flex flex-column gap-1">
@@ -79,14 +101,4 @@
 </div>
 {% endif %}
 
-{% endblock %}
-
-{% block scripts %}
-<script>
-function applyFilter(cat) {
-  const url = new URL(window.location.href);
-  url.searchParams.set('category', cat);
-  window.location.href = url.toString();
-}
-</script>
 {% endblock %}

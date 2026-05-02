@@ -10,22 +10,34 @@
       <p class="text-muted mb-0">Fill in the details below to list your item.</p>
     </div>
 
-    <div class="card border-0 shadow-sm p-4" style="border-radius:var(--radius)">
-      <form method="post" enctype="multipart/form-data">
+    <div class="form-card">
+      <form method="post" enctype="multipart/form-data" novalidate>
 
         <div class="mb-3">
           <label class="form-label" for="title">Title <span class="text-danger">*</span></label>
-          <input id="title" class="form-control" name="title" placeholder="e.g. Engineering Maths Textbook" required>
+          <input id="title" class="form-control" name="title"
+                 placeholder="e.g. Engineering Maths Textbook" required>
         </div>
 
-        <div class="mb-3">
-          <label class="form-label" for="category">Category <span class="text-danger">*</span></label>
-          <select id="category" class="form-select" name="category" required>
-            <option value="" disabled selected>Select a category</option>
-            {% for c in categories %}
-              <option value="{{ c }}">{{ c }}</option>
-            {% endfor %}
-          </select>
+        <div class="row g-3 mb-3">
+          <div class="col-sm-6">
+            <label class="form-label" for="category">Category <span class="text-danger">*</span></label>
+            <select id="category" class="form-select" name="category" required>
+              <option value="" disabled selected>Select a category</option>
+              {% for c in categories %}
+                <option value="{{ c }}">{{ c }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-sm-6">
+            <label class="form-label" for="condition">Condition</label>
+            <select id="condition" class="form-select" name="condition">
+              <option value="">— not specified —</option>
+              {% for cond in conditions %}
+                <option value="{{ cond }}">{{ cond }}</option>
+              {% endfor %}
+            </select>
+          </div>
         </div>
 
         <div class="mb-3">
@@ -38,15 +50,27 @@
         </div>
 
         <div class="mb-3">
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="is_negotiable"
+                   id="is_negotiable">
+            <label class="form-check-label" for="is_negotiable">Price is negotiable</label>
+          </div>
+        </div>
+
+        <div class="mb-3">
           <label class="form-label" for="description">Description</label>
           <textarea id="description" class="form-control" name="description" rows="4"
-                    placeholder="Describe the item — condition, edition, any details..."></textarea>
+                    placeholder="Describe the item — edition, any details..."></textarea>
         </div>
 
         <div class="mb-4">
           <label class="form-label" for="image">Photo</label>
-          <input id="image" class="form-control" type="file" name="image" accept=".png,.jpg,.jpeg">
+          <input id="image" class="form-control" type="file" name="image"
+                 accept=".png,.jpg,.jpeg" onchange="checkFileSize(this)">
           <div class="form-text">PNG or JPG, max 500 KB.</div>
+          <div id="fileSizeError" class="text-danger small mt-1" style="display:none">
+            File is too large. Please choose an image under 500 KB.
+          </div>
         </div>
 
         <div class="d-grid gap-2">
@@ -61,4 +85,18 @@
 
   </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function checkFileSize(input) {
+  const err = document.getElementById('fileSizeError');
+  if (input.files[0] && input.files[0].size > 500 * 1024) {
+    err.style.display = 'block';
+    input.value = '';
+  } else {
+    err.style.display = 'none';
+  }
+}
+</script>
 {% endblock %}

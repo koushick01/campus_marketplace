@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}{{ seller.username }}'s Profile — Campus Marketplace{% endblock %}
+
+{% block content %}
+<div class="profile-header">
+  <div class="profile-avatar">
+    {{ seller.username[0].upper() }}
+  </div>
+  <div>
+    <h2 class="fw-bold mb-0">{{ seller.username }}</h2>
+    <p class="text-muted small mb-0">
+      <i class="bi bi-calendar3 me-1"></i>Member since {{ seller.created_at.strftime('%B %Y') }}
+    </p>
+    <p class="text-muted small mb-0">
+      <i class="bi bi-box-seam me-1"></i>
+      {{ listings|length }} listing{% if listings|length != 1 %}s{% endif %}
+    </p>
+  </div>
+</div>
+
+{% if listings %}
+<h5 class="fw-semibold mb-3">Listings by {{ seller.username }}</h5>
+<div class="row g-4">
+  {% for l in listings %}
+  <div class="col-6 col-md-4 col-lg-3">
+    <div class="listing-card {% if l.status == 'sold' %}sold{% endif %}">
+      {% if l.status == 'sold' %}
+        <div class="sold-ribbon">Sold</div>
+      {% endif %}
+      {% if l.image %}
+        <img src="{{ url_for('static', filename='uploads/' + l.image) }}"
+             class="card-img-top" alt="{{ l.title }}">
+      {% else %}
+        <div class="card-img-placeholder">
+          <i class="bi bi-image" aria-hidden="true"></i>
+        </div>
+      {% endif %}
+      <div class="card-body d-flex flex-column gap-1">
+        <span class="badge-category">{{ l.category or 'Other' }}</span>
+        <div class="card-title mt-1">{{ l.title }}</div>
+        <div class="price-tag">${{ "%.2f"|format(l.price) }}</div>
+        <a href="{{ url_for('listing_detail', id=l.id) }}"
+           class="btn btn-primary btn-sm mt-auto">View</a>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+{% else %}
+<div class="empty-state">
+  <div><i class="bi bi-box-seam"></i></div>
+  <h5 class="mt-2">No listings yet</h5>
+  <p class="mt-1">{{ seller.username }} hasn't posted any items.</p>
+</div>
+{% endif %}
+{% endblock %}

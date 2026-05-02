@@ -8,16 +8,23 @@
   </a>
 </div>
 
+{% if listing.status == 'sold' %}
+<div class="sold-banner">
+  <i class="bi bi-check-circle me-2"></i>This item has been sold
+</div>
+{% endif %}
+
 <div class="row g-4">
 
   <!-- Image column -->
   <div class="col-12 col-md-5">
     {% if listing.image %}
       <img src="{{ url_for('static', filename='uploads/' + listing.image) }}"
-           class="detail-img" alt="{{ listing.title }}">
+           class="detail-img {% if listing.status == 'sold' %}opacity-75{% endif %}"
+           alt="{{ listing.title }}">
     {% else %}
       <div class="detail-img-placeholder">
-        <i class="bi bi-image"></i>
+        <i class="bi bi-image" aria-hidden="true"></i>
       </div>
     {% endif %}
   </div>
@@ -27,7 +34,19 @@
 
     <span class="badge-category">{{ listing.category or 'Other' }}</span>
     <h2 class="mt-2 mb-1 fw-bold">{{ listing.title }}</h2>
-    <div class="detail-price mb-3">${{ "%.2f"|format(listing.price) }}</div>
+    <div class="detail-price mb-1">${{ "%.2f"|format(listing.price) }}
+      {% if listing.is_negotiable %}
+        <span class="fs-6 fw-normal text-muted ms-2">
+          <i class="bi bi-chat-square-text me-1"></i>Negotiable
+        </span>
+      {% endif %}
+    </div>
+
+    {% if listing.condition %}
+    <p class="text-muted small mb-2">
+      <i class="bi bi-tag me-1"></i>Condition: <strong>{{ listing.condition }}</strong>
+    </p>
+    {% endif %}
 
     {% if listing.description %}
     <p class="text-muted mb-3">{{ listing.description }}</p>
@@ -35,9 +54,12 @@
 
     <hr class="section-divider">
 
-    <div class="detail-meta d-flex gap-3 mb-3">
+    <div class="detail-meta d-flex gap-3 mb-3 flex-wrap">
       <span><i class="bi bi-person me-1"></i>
-        Sold by <strong>{{ seller.username if seller else 'Unknown' }}</strong>
+        Sold by
+        <a href="{{ url_for('user_profile', username=seller.username) }}" class="fw-semibold">
+          {{ seller.username if seller else 'Unknown' }}
+        </a>
       </span>
       <span><i class="bi bi-clock me-1"></i>
         {{ listing.created_at.strftime('%d %b %Y') }}
@@ -46,43 +68,56 @@
 
     {% if current_user.is_authenticated %}
       {% if current_user.id != listing.user_id %}
-        <!-- Save to favorites -->
-        {% if already_saved %}
-          <span class="btn btn-outline-secondary btn-sm disabled mb-3">
-            <i class="bi bi-heart-fill me-1"></i>Saved
-          </span>
+        {% if listing.status == 'sold' %}
+          <div class="alert alert-secondary py-2 small">
+            This item is no longer available. Check out other
+            <a href="{{ url_for('index') }}">listings</a>.
+          </div>
         {% else %}
-          <form method="post" action="{{ url_for('favorite', id=listing.id) }}" class="d-inline mb-3">
-            <button type="submit" class="btn btn-outline-primary btn-sm">
-              <i class="bi bi-heart me-1"></i>Save to Favorites
-            </button>
-          </form>
-        {% endif %}
+          <!-- Save to favorites -->
+          {% if already_saved %}
+            <span class="btn btn-outline-secondary btn-sm disabled mb-3">
+              <i class="bi bi-heart-fill me-1"></i>Saved
+            </span>
+          {% else %}
+            <form method="post" action="{{ url_for('favorite', id=listing.id) }}" class="d-inline mb-3">
+              <button type="submit" class="btn btn-outline-primary btn-sm">
+                <i class="bi bi-heart me-1"></i>Save to Favorites
+              </button>
+            </form>
+          {% endif %}
 
-        <!-- Message seller -->
-        <div class="card border-0 shadow-sm p-3 mt-2" style="border-radius:var(--radius)">
-          <h6 class="fw-semibold mb-3">
-            <i class="bi bi-chat-dots me-1" style="color:var(--primary)"></i>
-            Message the Seller
-          </h6>
-          <form method="post" action="{{ url_for('messages') }}">
-            <input type="hidden" name="receiver_id" value="{{ listing.user_id }}">
-            <input type="hidden" name="listing_id" value="{{ listing.id }}">
-            <textarea class="form-control mb-2" name="text" rows="3"
-                      placeholder="Hi, is this still available?" required></textarea>
-            <button class="btn btn-primary btn-sm">
-              <i class="bi bi-send me-1"></i>Send Message
-            </button>
-          </form>
-        </div>
+          <!-- Message seller -->
+          <div class="form-card mt-3" id="message-form">
+            <h6 class="fw-semibold mb-3">
+              <i class="bi bi-chat-dots me-1" style="color:var(--primary)"></i>
+              Message the Seller
+            </h6>
+            <form method="post" action="{{ url_for('messages') }}">
+              <input type="hidden" name="receiver_id" value="{{ listing.user_id }}">
+              <input type="hidden" name="listing_id" value="{{ listing.id }}">
+              <textarea class="form-control mb-2" name="text" rows="3"
+                        placeholder="Hi, is this still available?" required></textarea>
+              <button class="btn btn-primary btn-sm">
+                <i class="bi bi-send me-1"></i>Send Message
+              </button>
+            </form>
+          </div>
+        {% endif %}
 
       {% else %}
         <!-- Own listing actions -->
-        <div class="d-flex gap-2 mt-2">
+        <div class="d-flex gap-2 mt-2 flex-wrap">
           <a href="{{ url_for('edit_listing', id=listing.id) }}"
              class="btn btn-outline-primary btn-sm">
             <i class="bi bi-pencil me-1"></i>Edit
           </a>
+          <form method="post" action="{{ url_for('mark_sold', id=listing.id) }}">
+            <button class="btn btn-sm {% if listing.status == 'sold' %}btn-outline-success{% else %}btn-outline-secondary{% endif %}">
+              <i class="bi bi-{% if listing.status == 'sold' %}arrow-counterclockwise{% else %}check-circle{% endif %} me-1"></i>
+              {{ 'Relist' if listing.status == 'sold' else 'Mark as Sold' }}
+            </button>
+          </form>
           <form method="post" action="{{ url_for('delete_listing', id=listing.id) }}"
                 onsubmit="return confirm('Delete this listing?')">
             <button class="btn btn-outline-danger btn-sm">
